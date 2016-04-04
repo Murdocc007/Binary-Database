@@ -318,6 +318,40 @@ class fileMethods():
           return self.tempfile.tell() == os.fstat(self.tempfile.fileno()).st_size
 
 
+     def readDataType(self,type,offset):
+          f=self.tempfile
+          if(offset!=None):
+               f.seek(offset)
+          if('VARCHAR' in type.upper()):
+               return self.readVarChar(None)
+          elif('DATE' in type.upper()):
+               return self.readDateTime(None)
+          elif('UNSIGNED' in type.upper()):
+               if('BYTE' in type.upper()):
+                    return self.readUnByte(None)
+               elif('SHORT' in type.upper()):
+                    return self.readUnShort(None)
+               elif('INT' in type.upper()):
+                    return self.readUnInt(None)
+               else:
+                    return self.readUnLong(None)
+          elif('BYTE' in type.upper()):
+               return self.readByte(None)
+          elif('SHORT' in type.upper()):
+               return self.readShort(None)
+          elif('INT' in type.upper()):
+               return self.readInt(None)
+          elif('LONG' in type.upper()):
+               return self.readLong(None)
+          elif('FLOAT' in type.upper()):
+               return self.readFloat(None)
+          elif('DOUBLE' in type.upper()):
+               return self.readDouble(None)
+          elif('DATE' in type.upper()):
+               return self.readDateTime(None)
+          else:
+               return self.readChar(None,int(type[type.find("(")+1:type.find(")")]))
 
 
-
+     def seek(self,offset):
+          self.tempfile.seek(offset)

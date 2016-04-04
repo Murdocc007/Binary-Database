@@ -33,11 +33,13 @@ __location__ = os.path.realpath(
 f=fileMethods(os.path.join(__location__, 'test.data'))
 # f.openFile()
 f.openFile()
-f.writeInt(8)
+f.writeVarChar('type',len('type'))
+f.writeVarChar('data_type',len('data_type'))
 f.close()
 
 f.openFile()
-f.writeInt(6)
+f.readVarChar(None)
+f.readVarChar(None)
 f.close()
 # f.close()
 # k=raw_input()
@@ -47,12 +49,12 @@ f.close()
 # f.openFile()
 # f.writeByte(0)
 # f.close()
-f.openFile()
-print f.readInt(None)
-# print f.readByte(None)
-print f.readInt(None)
-# print f.readByte(None)
-f.close()
+# f.openFile()
+# print f.readInt(None)
+# # print f.readByte(None)
+# print f.readInt(None)
+# # print f.readByte(None)
+# f.close()
 #
 # SQL='select col1,col2 from table'
 #
@@ -69,5 +71,9 @@ f.close()
 # columns = getcolumns(tokenize(sql))
 #
 # print columns
+
+
+columns=['data_type']
+print 'data_type' in columns
 
 

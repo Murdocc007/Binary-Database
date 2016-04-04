@@ -1,5 +1,6 @@
 import time
 from django.utils.timezone import now
+from datetime import datetime
 from helperfunctions import fileMethods
 
 __author__ = 'aditya'
@@ -15,6 +16,8 @@ CONST_DELETE='DELETE'
 CONST_INSERT='INSERT'
 CONST_USE='USE'
 CONST_SELECT='SELECT'
+CONST_SHOW='SHOW'
+CONST_DESCRIBE='DESCRIBE'
 TABLE_NAME='information_schema.tables.data'
 TABLE_COLUMNS='information_schema.columns.data'
 TABLE_SCHEMATA='information_schema.schemata.data'
@@ -56,12 +59,15 @@ def createTableQueryHandler(q):
     tuple.append(long(time.time()))
     writeInformationSchemaTables(tuple)
 
+    count=0
     for name,type,key,isnull in zip(colnames,data_type,primarykey,notnullable):
         tuple=[]
+        count+=1
         tuple.append(CURRENT_DATABASE)
         tuple.append(tablename)
         tuple.append('SYSTEM VIEW')
-        tuple.append(0)
+        #increasing the ordinal count
+        tuple.append(count)
         tuple.append(isnull)
         tuple.append(type)
         tuple.append(name)
@@ -82,7 +88,7 @@ def writeInformationSchemaTables(tuple):
     lenTuple=len(tuple[0])+len(tuple[1])+len(tuple[2])+8*3+1+1
     f.openFile()
     #writing the length of the tuple
-    f.writeInt(lenTuple)
+    # f.writeInt(lenTuple)
     #set the delete bit as 0
     f.writeByte(0)
     f.writeVarChar(table_schema,len(table_schema))
@@ -103,7 +109,7 @@ def writeInformationSchemaColumns(tuple):
 
     f.openFile()
     #write the length of the tuple
-    f.writeInt(int(lentuple))
+    # f.writeInt(int(lentuple))
     #delete byte is set to 0
     f.writeByte(0)
     f.writeVarChar(table_schema,len(table_schema))
@@ -158,8 +164,9 @@ def detectDataType(s):
 def getDataTypeofColumn(dbname,tablename,columnname):
     f=fileMethods(os.path.join(__location__,TABLE_COLUMNS))
     f.openFile()
+    f.seek(0)
     while(f.reachedEOF()!=True):
-        tuplelength= f.readInt(None)
+        # tuplelength= f.readInt(None)
         flag=f.readByte(None)
         table_schema=f.readVarChar(None)
         table_name=f.readVarChar(None)
@@ -178,8 +185,9 @@ def getColumnsOfTable(dbname,tablename):
     f=fileMethods(os.path.join(__location__,TABLE_COLUMNS))
     cols=[]
     f.openFile()
+    f.seek(0)
     while(f.reachedEOF()!=True):
-        tuplelength= f.readInt(None)
+        # tuplelength= f.readInt(None)
         flag=f.readByte(None)
         table_schema=f.readVarChar(None)
         table_name=f.readVarChar(None)
@@ -200,49 +208,92 @@ def getQueryType(q):
 def processQuery(q):
     type= getQueryType(q)
     if(type==CONST_SELECT):
-        pass
-    if(type==CONST_CREATE):
+        selectQueryHandler(q)
+    elif(type==CONST_CREATE):
         if(q.split(' ')[1]=='SCHEMA'):
             createSchemaQueryHandler(q)
         else:
             createTableQueryHandler(q)
-    if(type==CONST_DELETE):
+    elif(type==CONST_DELETE):
         pass
-    if(type==CONST_DROP):
+    elif(type==CONST_DROP):
         pass
-    if(type==CONST_USE):
-        pass
+    elif(type==CONST_USE):
+        useQueryHandler(q)
+    elif(type==CONST_SHOW):
+        showQueryHandler(q)
+    elif(type==CONST_INSERT):
+        insertQueryHandler(q)
+    elif(type==CONST_DESCRIBE):
+        describeQueryHandler(q)
 
+def getDatabases():
+    f=fileMethods(os.path.join(__location__, TABLE_SCHEMATA))
+    f.openFile()
+    f.seek(0)
+    while(f.reachedEOF()!=True):
+        print f.readVarChar(None)
+    f.close()
 
 def useQueryHandler(q):
     CURRENT_DATABASE=q.split(' ')[1].lower()
 
+def describeQueryHandler(q):
+    pass
 
+
+#prints all the schemas present
 def showQueryHandler(q):
     val=q.split(' ')[1]
-    if(val.upper()==CONST_DB or val.upper()==CONST_SCHEMA):
-        pass
+    if(val.upper()==CONST_DB ):
+        getDatabases()
     else:
-        pass
+        getDatabaseTables(CURRENT_DATABASE)
+
+#prints all the tables present in the schema
+def getDatabaseTables(dbname):
+    f=fileMethods(os.path.join(__location__, TABLE_NAME))
+    f.openFile()
+    f.seek(0)
+    result=[[]]
+    while(f.reachedEOF()!=True):
+        temp=[]
+        # length=f.readInt(None)
+        delete=f.readByte(None)
+        schema_name=f.readVarChar(None)
+        table_name=f.readVarChar(None)
+        table_type=f.readVarChar(None)
+        table_rows=f.readLong(None)
+        create_time=f.readDateTime(None)
+        update_time=f.readDateTime(None)
+        if(schema_name==dbname and delete==0):
+            print schema_name +' '+table_name+' '+table_type+' '+str(table_rows)+' '\
+                  +str(datetime.fromtimestamp(create_time))+' '+str(datetime.fromtimestamp(update_time))
+
+
 
 def processeColumnsData(s):
     array=s.split(',')#split the string on commas
     colnames=[]
     primarykey=[]
-    notnullable=[]
+    nullable=[]
     data_type=[]
     for col in array:
         colnames.append(col.split(' ')[0])
         if('NOT NULL' in col):
-            notnullable.append('YES')
+            nullable.append('NO')
         else:
-            notnullable.append('NO')
+            nullable.append('YES')
         if('PRIMARY' in col):
             primarykey.append('YES')
         else:
             primarykey.append('NO')
-        data_type.append(col.split(' ')[1])
-    return colnames,data_type,primarykey,notnullable
+        if(col.split(' ')[1].upper()=='UNSIGNED'):
+            type= col.split(' ')[1]+' '+col.split(' ')[2]
+        else:
+            type=col.split(' ')[1]
+        data_type.append(type)
+    return colnames,data_type,primarykey,nullable
 
 
 
@@ -259,8 +310,55 @@ def deleteQueryHandler(q):
 def dropQueryHandler(q):
     table=getTableName(q)
 
+#handles the select query
 def selectQueryHandler(q):
     table=getTableName(q)
+    columns_requested,wherecolumn,wherevalue=getColumnsData(q)
+    wherevalue=[col.strip("'") for col in wherevalue]
+    f=fileMethods(os.path.join(__location__,CURRENT_DATABASE+'.'+table.lower()+'.data'))
+    columns=getColumnsOfTable(CURRENT_DATABASE,table.upper())
+    f.openFile()
+    f.seek(0)
+    if(columns_requested[0]=="*"):
+        while(f.reachedEOF()!=True):
+            tuple=[]
+            flag=0
+            deletebit=f.readByte(None)
+            tuple=[]
+            flag=0
+            for col in columns:
+                type=getDataTypeofColumn(CURRENT_DATABASE,table,col)
+                val=f.readDataType(type,None)
+                tuple.append(val)
+                if(len(wherecolumn)!=0):
+                    if(col in wherecolumn and str(wherevalue[0])==str(val)):
+                        flag=1
+                else:
+                    flag=1
+
+            if(flag==1):
+                print tuple
+                flag=0
+    else:
+        while(f.reachedEOF()!=True):
+            tuple=[]
+            flag=0
+            deletebit=f.readByte(None)
+
+            flag=0
+            for col in columns:
+                type=getDataTypeofColumn(CURRENT_DATABASE,table,col)
+                val=f.readDataType(type,None)
+
+                if(len(wherecolumn)!=0):
+                    if(wherecolumn.upper()==col.upper() and wherevalue[0]):
+                        flag=1
+                else:
+                    flag=1
+                if(flag==1 and col in columns_requested):
+                    print (val,)
+
+    f.close()
 
 def getTableName(q):
     Q=q.upper()
@@ -315,26 +413,32 @@ def getColumnsData(q):
     elif(type==CONST_SELECT):
         selectcols=q[q.index(CONST_SELECT)+6:q.index('FROM')]
         #columns to be selected
-        selectcols.split(',')
-        s=q[q.index('WHERE')+5:].split(',')
+        selectcols=selectcols.strip(" ")
+        if(',' in selectcols):
+            selectcols=selectcols.split(',')
+            selectcols=[ col.strip(' ') for col in selectcols]
+        s=[]
+        if('WHERE' in q):
+            s=q[q.index('WHERE')+5:].split(',')
         label=[]
         value=[]
         for i in s:
             temp=i.split('=')
             #two list one with the label and the other with the value
-            label.append(temp[0])
-            value.append(temp[1])
+            label.append(temp[0].strip(' '))
+            value.append(temp[1].strip(' '))
+        return selectcols,label,value
 
     else:
         return None
 
 
-# s=''
-# while(s!='exit'):
-#      sys.stdout.write('davisql>')
-#      s=raw_input()
-#      s=sqlparse.format(s, keyword_case='upper')
-#      processQuery(s)
+s=''
+while(s!='exit'):
+     sys.stdout.write('davisql>')
+     s=raw_input()
+     s=sqlparse.format(s, keyword_case='upper')
+     processQuery(s)
 
-print getColumnsOfTable('information_schema','table_name')
 
+# print getDataTypeofColumn('information_schema','table_name','col1')
