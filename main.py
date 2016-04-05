@@ -17,7 +17,7 @@ CONST_INSERT='INSERT'
 CONST_USE='USE'
 CONST_SELECT='SELECT'
 CONST_SHOW='SHOW'
-CONST_DESCRIBE='DESCRIBE'
+CONST_DESCRIBE='DESC'
 TABLE_NAME='information_schema.tables.data'
 TABLE_COLUMNS='information_schema.columns.data'
 TABLE_SCHEMATA='information_schema.schemata.data'
@@ -42,7 +42,7 @@ __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 def createSchemaQueryHandler(q):
-    schema=q.split(' ')[2]
+    schema=q.split()[2]
     writeInformationSchemaSchemata(schema)
 
 
@@ -85,7 +85,7 @@ def writeInformationSchemaTables(tuple):
     #length of the tuple
     #varchar1+varchar2+varchar3+table_rows,create time,update time, 1 bit to indicate whether it has been deleted or not
     #and one more byte for it's length
-    lenTuple=len(tuple[0])+len(tuple[1])+len(tuple[2])+8*3+1+1
+    # lenTuple=len(tuple[0])+len(tuple[1])+len(tuple[2])+8*3+1+1
     f.openFile()
     #writing the length of the tuple
     # f.writeInt(lenTuple)
@@ -98,6 +98,26 @@ def writeInformationSchemaTables(tuple):
     f.writeDateTime(long(create_time))
     f.writeDateTime(long(update_time))
     f.close()
+
+#prints all the tables present in the schema
+def getDatabaseTables(dbname):
+    f=fileMethods(os.path.join(__location__, TABLE_NAME))
+    f.openFile()
+    f.seek(0)
+    result=[[]]
+    while(f.reachedEOF()!=True):
+        temp=[]
+        # length=f.readInt(None)
+        delete=f.readByte(None)
+        schema_name=f.readVarChar(None)
+        table_name=f.readVarChar(None)
+        table_type=f.readVarChar(None)
+        table_rows=f.readUnLong(None)
+        create_time=f.readDateTime(None)
+        update_time=f.readDateTime(None)
+        if(schema_name==dbname and delete==0):
+            print schema_name +' '+table_name+' '+table_type+' '+str(table_rows)+' '\
+                  +str(datetime.fromtimestamp(create_time))+' '+str(datetime.fromtimestamp(update_time))
 
 
 def writeInformationSchemaColumns(tuple):
@@ -203,14 +223,14 @@ def getColumnsOfTable(dbname,tablename):
     return cols
 
 def getQueryType(q):
-    return q.split(' ')[0].upper()
+    return q.split()[0].upper()
 
 def processQuery(q):
     type= getQueryType(q)
     if(type==CONST_SELECT):
         selectQueryHandler(q)
     elif(type==CONST_CREATE):
-        if(q.split(' ')[1]=='SCHEMA'):
+        if(q.split()[1]=='SCHEMA'):
             createSchemaQueryHandler(q)
         else:
             createTableQueryHandler(q)
@@ -236,39 +256,27 @@ def getDatabases():
     f.close()
 
 def useQueryHandler(q):
-    CURRENT_DATABASE=q.split(' ')[1].lower()
+    CURRENT_DATABASE=q.split()[1].lower()
 
 def describeQueryHandler(q):
-    pass
+    table=getTableName(q)
+    columns=getColumnsOfTable(CURRENT_DATABASE,table)
+    for col in columns:
+        print(col,)
+        type=getDataTypeofColumn(CURRENT_DATABASE,table,col)
+        print (type)
+
 
 
 #prints all the schemas present
 def showQueryHandler(q):
-    val=q.split(' ')[1]
+    val=q.split()[1]
     if(val.upper()==CONST_DB ):
         getDatabases()
     else:
         getDatabaseTables(CURRENT_DATABASE)
 
-#prints all the tables present in the schema
-def getDatabaseTables(dbname):
-    f=fileMethods(os.path.join(__location__, TABLE_NAME))
-    f.openFile()
-    f.seek(0)
-    result=[[]]
-    while(f.reachedEOF()!=True):
-        temp=[]
-        # length=f.readInt(None)
-        delete=f.readByte(None)
-        schema_name=f.readVarChar(None)
-        table_name=f.readVarChar(None)
-        table_type=f.readVarChar(None)
-        table_rows=f.readLong(None)
-        create_time=f.readDateTime(None)
-        update_time=f.readDateTime(None)
-        if(schema_name==dbname and delete==0):
-            print schema_name +' '+table_name+' '+table_type+' '+str(table_rows)+' '\
-                  +str(datetime.fromtimestamp(create_time))+' '+str(datetime.fromtimestamp(update_time))
+
 
 
 
@@ -279,7 +287,7 @@ def processeColumnsData(s):
     nullable=[]
     data_type=[]
     for col in array:
-        colnames.append(col.split(' ')[0])
+        colnames.append(col.split()[0])
         if('NOT NULL' in col):
             nullable.append('NO')
         else:
@@ -291,7 +299,7 @@ def processeColumnsData(s):
         if(col.split(' ')[1].upper()=='UNSIGNED'):
             type= col.split(' ')[1]+' '+col.split(' ')[2]
         else:
-            type=col.split(' ')[1]
+            type=col.split()[1]
         data_type.append(type)
     return colnames,data_type,primarykey,nullable
 
@@ -331,7 +339,7 @@ def selectQueryHandler(q):
                 val=f.readDataType(type,None)
                 tuple.append(val)
                 if(len(wherecolumn)!=0):
-                    if(col in wherecolumn and str(wherevalue[0])==str(val)):
+                    if(col in wherecolumn and str(wherevalue[0]).upper()==str(val).upper()):
                         flag=1
                 else:
                     flag=1
@@ -346,24 +354,27 @@ def selectQueryHandler(q):
             deletebit=f.readByte(None)
 
             flag=0
+            tuple=[]
             for col in columns:
                 type=getDataTypeofColumn(CURRENT_DATABASE,table,col)
                 val=f.readDataType(type,None)
 
                 if(len(wherecolumn)!=0):
-                    if(wherecolumn.upper()==col.upper() and wherevalue[0]):
+                    if(wherecolumn[0].upper()==col.upper() and str(wherevalue[0]).upper()==str(val).upper()):
                         flag=1
                 else:
                     flag=1
-                if(flag==1 and col in columns_requested):
-                    print (val,)
-
+                if(col in columns_requested):
+                    tuple.append(val)
+                    # print (val,)
+            if(flag==1):
+                print tuple
     f.close()
 
 def getTableName(q):
     Q=q.upper()
     type=getQueryType(Q)
-    val=Q.split(' ')
+    val=Q.split()
     if(type==CONST_CREATE):
         return val[val.index('TABLE')+1]
     elif(type==CONST_INSERT):
@@ -372,6 +383,8 @@ def getTableName(q):
         return val[val.index('FROM')+1]
     elif(type==CONST_DROP):
         return val[val.index(CONST_DROP)+1]
+    elif(type==CONST_DESCRIBE):
+        return val[val.index(CONST_DESCRIBE)+1]
     else:
         return None
 

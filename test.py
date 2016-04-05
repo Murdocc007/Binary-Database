@@ -33,13 +33,13 @@ __location__ = os.path.realpath(
 f=fileMethods(os.path.join(__location__, 'test.data'))
 # f.openFile()
 f.openFile()
-f.writeVarChar('type',len('type'))
-f.writeVarChar('data_type',len('data_type'))
+f.writeUnLong(0)
+# f.writeVarChar('data_type',len('data_type'))
 f.close()
 
 f.openFile()
-f.readVarChar(None)
-f.readVarChar(None)
+# f.readVarChar(None)
+print f.readUnLong(None)
 f.close()
 # f.close()
 # k=raw_input()
@@ -73,7 +73,5 @@ f.close()
 # print columns
 
 
-columns=['data_type']
-print 'data_type' in columns
 
 

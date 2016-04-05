@@ -95,7 +95,7 @@ class fileMethods():
                return None
 
      def writeUnShort(self,num):
-          value=self.packShort(int(num))
+          value=self.packUnShort(int(num))
           f=self.tempfile
           if(value!=None):
                f.write(value)
@@ -156,12 +156,12 @@ class fileMethods():
 
      def packLong(self,num):
           try:
-               return struct.pack('>l',num)
+               return struct.pack('>q',num)
           except:
                return None
 
      def writeLong(self,num):
-          value=self.packShort(long(num))
+          value=self.packLong(long(num))
           f=self.tempfile
           if(value!=None):
                f.write(value)
@@ -170,19 +170,19 @@ class fileMethods():
           f=self.tempfile
           if(offset!=None):
                f.seek(offset)
-          val=struct.unpack('>l',f.read(8))[0]
+          val=struct.unpack('>q',f.read(8))[0]
           return val
 
 
      # Unsigned Long
      def packUnLong(self,num):
           try:
-               return struct.pack('>L',num)
+               return struct.pack('>Q',num)
           except:
                return None
 
      def writeUnLong(self,num):
-          value=self.packShort(long(num))
+          value=self.packUnLong(long(num))
           f=self.tempfile
           if(value!=None):
                f.write(value)
@@ -191,7 +191,8 @@ class fileMethods():
           f=self.tempfile
           if(offset!=None):
                f.seek(offset)
-          val=struct.unpack('>L',f.read(8))[0]
+          temp=f.read(8)
+          val=struct.unpack('>Q',temp)[0]
           return val
 
      # Char
@@ -293,7 +294,7 @@ class fileMethods():
      # Date Time
      def packDateTime(self,val):
           try:
-               return struct.pack('>L',val)
+               return struct.pack('>Q',val)
           except:
                return None
 
@@ -308,7 +309,7 @@ class fileMethods():
           if(offset!=None):
                f.seek(offset)
           val=''
-          val=struct.unpack('>L',f.read(8))[0]
+          val=struct.unpack('>Q',f.read(8))[0]
           return val
 
      def close(self):
