@@ -157,7 +157,6 @@ def updateTableCount(dbname,table):
             type=getDataTypeofColumn(dbname,table,col)
             f.readDataType(type,None)
     f.close()
-
     f=fileMethods(os.path.join(__location__,TABLE_NAME))
     columns=getColumnsOfTable(dbname,'tables')
     f.openFile()
@@ -174,12 +173,36 @@ def updateTableCount(dbname,table):
             if(col.upper()=='TABLE_NAME' and val.upper()==table.upper()):
                 flag=1
     f.close()
-
     #opening the file in write mode
     f.openWriteMode()
     f.seek(pos)
     f.writeUnLong(int(count))
     f.close()
+
+def updateAccessTime(dbname,table):
+    f=fileMethods(os.path.join(__location__,TABLE_NAME))
+    columns=getColumnsOfTable(dbname,'tables')
+    f.openFile()
+    flag=0
+    pos=0
+    while(f.reachedEOF()!=True and flag==0):
+        f.readByte(None)
+        for col in columns:
+            temp=f.tell()
+            type=getDataTypeofColumn(dbname,'tables',col)
+            val=f.readDataType(type,None)
+            if(col.upper()=='UPDATE_TIME'):
+                pos=temp
+            if(col.upper()=='TABLE_NAME' and val.upper()==table.upper()):
+                flag=1
+    f.close()
+    #opening the file in write mode
+    f.openWriteMode()
+    f.seek(pos)
+    f.writeUnLong(long(time.time()))
+    f.close()
+
+
 
 
 def writeInformationSchemaSchemata(schema):
@@ -371,6 +394,7 @@ def insertQueryHandler(q):
     f.close()
 
     updateTableCount(CURRENT_DATABASE,table)
+    updateAccessTime(CURRENT_DATABASE,table)
     # #update the count of the table
     # f=fileMethods(os.path.join(__location__,TABLE_NAME))
     # columns=getColumnsOfTable(CURRENT_DATABASE,'tables')
@@ -518,8 +542,8 @@ def selectQueryHandler(q):
                     # print (val,)
             if(deletebit==0 and flag==1):
                 print tuple
-
     f.close()
+    updateAccessTime(CURRENT_DATABASE,table)
 
 def getTableName(q):
     Q=q.upper()
