@@ -317,6 +317,9 @@ def processeColumnsData(s):
 def insertQueryHandler(q):
     table=getTableName(q)
     f=fileMethods(os.path.join(__location__,CURRENT_DATABASE+'.'+table.lower()+'.data'))
+    if(checkIfDeleted(CURRENT_DATABASE,table)==1):
+        print 'TABLE HAS ALREADY BEEN DELETED'
+        return
     columns=getColumnsOfTable(CURRENT_DATABASE,table)
     values=getColumnsData(q)
     f.openFile()
@@ -324,8 +327,36 @@ def insertQueryHandler(q):
     f.writeByte(0)
     for val,col in zip(values,columns):
         type=getDataTypeofColumn(CURRENT_DATABASE,table,col)
+        temf=open()
         f.writeDataType(val,type,None)
     f.close()
+
+    #update the count of the table
+    f=fileMethods(os.path.join(__location__,TABLE_NAME))
+    columns=getColumnsOfTable(CURRENT_DATABASE,'tables')
+    f.openFile()
+    flag=0
+    pos=0
+    count=0
+    while(f.reachedEOF()!=True and flag==0):
+        f.readByte(None)
+        for col in columns:
+            temp=f.tell()
+            type=getDataTypeofColumn(CURRENT_DATABASE,'tables',col)
+            val=f.readDataType(type,None)
+            if(col.upper()=='TABLE_ROWS'):
+                count=val
+                pos=temp
+            if(col.upper()=='TABLE_NAME' and val.upper()==table.upper()):
+                flag=1
+    f.close()
+
+    #opening the file in write mode
+    f.openWriteMode()
+    f.seek(pos)
+    f.writeUnLong(int(count)+1)
+    f.close()
+
 
 
 
