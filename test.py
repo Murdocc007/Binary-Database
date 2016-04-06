@@ -1,46 +1,32 @@
 __author__ = 'aditya'
-import os,sys
-import sqlparse
-from sqlparse.sql import IdentifierList, Identifier
-from sqlparse.tokens import Keyword, DML
-from sqlparse.lexer import tokenize
-from sqlparse.filters import compact
-from sqlparse.functions import getcolumns, getlimit, IsType
+import os
 from helperfunctions import fileMethods
-# CURRENT_DATABASE=''
-# CONST_DB='DATABASES'
-# CONST_SCHEMA='SCHEMA'
-# CONST_CREATE='CREATE'
-# CONST_DROP='DROP'
-# CONST_DELETE='DELETE'
-# CONST_INSERT='INSERT'
-# CONST_USE='USE'
-# CONST_SELECT='SELECT'
-# def getQueryType(q):
-#     return q.split(' ')[0].upper()
+
 #
 #
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
-# import struct
-# def ha():
-#     try:
-#         return struct.pack('>b',-128)
-#     except:
-#         print 'ha'
-#
-#
+
 f=fileMethods(os.path.join(__location__, 'test.data'))
+# # f.openFile()
 # f.openFile()
-f.openFile()
-f.writeUnLong(0)
-# f.writeVarChar('data_type',len('data_type'))
-f.close()
+# f.writeVarChar('a',len('a'))
+# # f.writeVarChar('data_type',len('data_type'))
+# f.close()
+#
+# f.openFile()
+# # f.readVarChar(None)
+# f.writeVarChar('e',len('e'))
+# f.close()
+#
+# f.openWriteMode()
+# f.writeVarChar('b',len('b'))
+# f.close()
 
 f.openFile()
-# f.readVarChar(None)
-print f.readUnLong(None)
+f.writeByte(int('1'))
 f.close()
+
 # f.close()
 # k=raw_input()
 # f.openFile()

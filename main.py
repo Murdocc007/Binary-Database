@@ -48,6 +48,9 @@ def createSchemaQueryHandler(q):
 
 def createTableQueryHandler(q):
     tablename=getTableName(q)
+    #creating the file
+    tempf=open(CURRENT_DATABASE+'.'+tablename.lower()+'.data','w')
+    tempf.close()
     columnsData=getColumnsData(q)
     colnames,data_type,primarykey,notnullable=processeColumnsData(columnsData)
     tuple=[]
@@ -143,9 +146,15 @@ def writeInformationSchemaColumns(tuple):
     f.close()
 
 
+
+
+
+
+
 def writeInformationSchemaSchemata(schema):
     f=fileMethods(os.path.join(__location__, TABLE_SCHEMATA))
     f.openFile()
+    f.writeByte(0)
     f.writeVarChar(schema,len(schema))
     f.close()
 
@@ -206,6 +215,7 @@ def getColumnsOfTable(dbname,tablename):
     cols=[]
     f.openFile()
     f.seek(0)
+    f.seek(0)
     while(f.reachedEOF()!=True):
         # tuplelength= f.readInt(None)
         flag=f.readByte(None)
@@ -237,7 +247,7 @@ def processQuery(q):
     elif(type==CONST_DELETE):
         pass
     elif(type==CONST_DROP):
-        pass
+        dropQueryHandler(q)
     elif(type==CONST_USE):
         useQueryHandler(q)
     elif(type==CONST_SHOW):
@@ -309,18 +319,93 @@ def processeColumnsData(s):
 
 def insertQueryHandler(q):
     table=getTableName(q)
-    print 'insert'
+    f=fileMethods(os.path.join(__location__,CURRENT_DATABASE+'.'+table+'.data'))
+    columns=getColumnsOfTable(CURRENT_DATABASE,table)
+    values=getColumnsData(q)
+    f.openFile()
+    for val,col in zip(values,columns):
+        type=getDataTypeofColumn(CURRENT_DATABASE,table,col)
+        f.writeDataType(val,type,None)
+    f.close()
 
-def deleteQueryHandler(q):
-    table=getTableName(q)
-    print 'delete'
+
+
+def checkIfDeleted(dbname,table):
+    f=fileMethods(os.path.join(__location__,TABLE_NAME))
+    columns=getColumnsOfTable(dbname,TABLE_NAME)
+    f.openFile()
+    f.seek(0)
+    flag=0
+    while(f.reachedEOF()!=True and flag==0):
+        deletebit=f.readByte(None)
+        for col in columns:
+            type=getDataTypeofColumn('information_schema','TABLES',col)
+            val=f.readDataType(type,None)
+            if(col=='TABLE_NAME' and val.upper()==table.upper()):
+                f.close()
+                return deletebit
+    f.close()
+
 
 def dropQueryHandler(q):
+    table=getTableName(q)
+    f=fileMethods(os.path.join(__location__,TABLE_NAME))
+    columns=getColumnsOfTable(CURRENT_DATABASE,'TABLES')
+    f.openFile()
+    f.seek(0)
+    flag=0
+    pos=0
+    while(f.reachedEOF()!=True and flag==0):
+        pos=f.tell()
+        deletebit=f.readByte(None)
+        for col in columns:
+            type=getDataTypeofColumn(CURRENT_DATABASE,'TABLES',col)
+            val=f.readDataType(type,None)
+            if(col=='TABLE_NAME' and val.upper()==table.upper()):
+                flag=1
+
+    f.close()
+    #open the write mode and move the pointer to the delete bit
+    f.openWriteMode()
+    f.seek(pos)
+    f.writeByte(1)
+    f.close()
+
+    f=fileMethods(os.path.join(__location__,TABLE_COLUMNS))
+    columns=getColumnsOfTable(CURRENT_DATABASE,'columns')
+    f.openFile()
+    f.seek(0)
+    flag=0
+    pos=0
+    tuple=[]
+    while(f.reachedEOF()!=True ):
+        pos=f.tell()
+        deletebit=f.readByte(None)
+        for col in columns:
+            type=getDataTypeofColumn(CURRENT_DATABASE,'columns',col)
+            val=f.readDataType(type,None)
+            if(col=='TABLE_NAME' and val.upper()==table.upper()):
+                tuple.append(pos)
+
+    f.close()
+    #open the write mode and move the pointer to the delete bit
+    f.openWriteMode()
+    for i in tuple:
+        f.seek(i)
+        f.writeByte(1)
+    f.close()
+
+
+
+def deleteQueryHandler(q):
     table=getTableName(q)
 
 #handles the select query
 def selectQueryHandler(q):
     table=getTableName(q)
+    if(checkIfDeleted(CURRENT_DATABASE,table)==1):
+        print 'TABLE ALREADY HAS BEEN DELETED'
+        return
     columns_requested,wherecolumn,wherevalue=getColumnsData(q)
     wherevalue=[col.strip("'") for col in wherevalue]
     f=fileMethods(os.path.join(__location__,CURRENT_DATABASE+'.'+table.lower()+'.data'))
@@ -329,8 +414,6 @@ def selectQueryHandler(q):
     f.seek(0)
     if(columns_requested[0]=="*"):
         while(f.reachedEOF()!=True):
-            tuple=[]
-            flag=0
             deletebit=f.readByte(None)
             tuple=[]
             flag=0
@@ -344,15 +427,11 @@ def selectQueryHandler(q):
                 else:
                     flag=1
 
-            if(flag==1):
+            if(deletebit==0 and flag==1):
                 print tuple
-                flag=0
     else:
         while(f.reachedEOF()!=True):
-            tuple=[]
-            flag=0
             deletebit=f.readByte(None)
-
             flag=0
             tuple=[]
             for col in columns:
@@ -367,8 +446,9 @@ def selectQueryHandler(q):
                 if(col in columns_requested):
                     tuple.append(val)
                     # print (val,)
-            if(flag==1):
+            if(deletebit==0 and flag==1):
                 print tuple
+
     f.close()
 
 def getTableName(q):
@@ -382,7 +462,7 @@ def getTableName(q):
     elif(type==CONST_DELETE or type==CONST_SELECT):
         return val[val.index('FROM')+1]
     elif(type==CONST_DROP):
-        return val[val.index(CONST_DROP)+1]
+        return val[val.index('TABLE')+1]
     elif(type==CONST_DESCRIBE):
         return val[val.index(CONST_DESCRIBE)+1]
     else:
@@ -407,11 +487,8 @@ def getColumnsData(q):
         m = rg.search(q)
         if m:
             rbraces1=m.group(1)
-            print rbraces1
-            s=rbraces1.split('VALUES')
-            #two list one with the label name and other with the value
-            label=s[0][s[0].index('(')+1:s[0].index(')')]
-            value=s[1][s[1].index('(')+1:s[1].index(')')]
+            values=rbraces1[rbraces1.index('(')+1:rbraces1.index(')')]
+            return values.split(',')
 
     elif(type==CONST_DELETE):
         s=q[q.index('WHERE')+5:].split(',')
@@ -452,6 +529,3 @@ while(s!='exit'):
      s=raw_input()
      s=sqlparse.format(s, keyword_case='upper')
      processQuery(s)
-
-
-# print getDataTypeofColumn('information_schema','table_name','col1')

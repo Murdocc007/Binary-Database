@@ -10,6 +10,12 @@ class fileMethods():
           self.tempfile=None
      #Byte
 
+     #opens file in write mode
+     def openWriteMode(self):
+          f=open(self.file,'r+')
+          self.tempfile=f
+          return f
+
      #opens up a file
      def openFile(self):
           f=open(self.file,'ab+')
@@ -148,7 +154,8 @@ class fileMethods():
           f=self.tempfile
           if(offset!=None):
                f.seek(offset)
-          val=struct.unpack('>I',f.read(4))[0]
+          temp=f.read(4)
+          val=struct.unpack('>I',temp)[0]
           return val
 
 
@@ -354,5 +361,41 @@ class fileMethods():
                return self.readChar(None,int(type[type.find("(")+1:type.find(")")]))
 
 
+     def writeDataType(self,s,type,offset):
+          f=self.tempfile
+          if(offset!=None):
+               f.seek(offset)
+          if('VARCHAR' in type.upper()):
+                self.writeVarChar(s,len(s))
+          elif('DATE' in type.upper()):
+                self.writeDateTime(long(s))
+          elif('UNSIGNED' in type.upper()):
+               if('BYTE' in type.upper()):
+                     self.writeUnByte(int(s))
+               elif('SHORT' in type.upper()):
+                     self.writeUnShort(int(s))
+               elif('INT' in type.upper()):
+                     self.writeUnInt(int(s))
+               else:
+                     self.writeUnLong(long(s))
+          elif('BYTE' in type.upper()):
+                self.writeByte(int(s))
+          elif('SHORT' in type.upper()):
+                self.writeShort(int(s))
+          elif('INT' in type.upper()):
+                self.writeInt(int(s))
+          elif('LONG' in type.upper()):
+                self.writeLong(long(s))
+          elif('FLOAT' in type.upper()):
+                self.writeFloat(float(s))
+          elif('DOUBLE' in type.upper()):
+                self.writeDouble(float(s))
+          elif('DATE' in type.upper()):
+                self.writeDateTime(long(s))
+
+
      def seek(self,offset):
           self.tempfile.seek(offset)
+
+     def tell(self):
+          return self.tempfile.tell()
