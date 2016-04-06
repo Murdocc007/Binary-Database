@@ -366,7 +366,7 @@ class fileMethods():
           if(offset!=None):
                f.seek(offset)
           if('VARCHAR' in type.upper()):
-                self.writeVarChar(s,len(s))
+                self.writeVarChar(str(s[1:-1]),len(str(s[1:-1])))
           elif('DATE' in type.upper()):
                 self.writeDateTime(long(s))
           elif('UNSIGNED' in type.upper()):

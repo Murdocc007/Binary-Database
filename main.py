@@ -48,9 +48,6 @@ def createSchemaQueryHandler(q):
 
 def createTableQueryHandler(q):
     tablename=getTableName(q)
-    #creating the file
-    tempf=open(CURRENT_DATABASE+'.'+tablename.lower()+'.data','w')
-    tempf.close()
     columnsData=getColumnsData(q)
     colnames,data_type,primarykey,notnullable=processeColumnsData(columnsData)
     tuple=[]
@@ -237,24 +234,24 @@ def getQueryType(q):
 
 def processQuery(q):
     type= getQueryType(q)
-    if(type==CONST_SELECT):
+    if(type.upper()==CONST_SELECT):
         selectQueryHandler(q)
-    elif(type==CONST_CREATE):
+    elif(type.upper()==CONST_CREATE):
         if(q.split()[1]=='SCHEMA'):
             createSchemaQueryHandler(q)
         else:
             createTableQueryHandler(q)
-    elif(type==CONST_DELETE):
+    elif(type.upper()==CONST_DELETE):
         pass
-    elif(type==CONST_DROP):
+    elif(type.upper()==CONST_DROP):
         dropQueryHandler(q)
-    elif(type==CONST_USE):
+    elif(type.upper()==CONST_USE):
         useQueryHandler(q)
-    elif(type==CONST_SHOW):
+    elif(type.upper()==CONST_SHOW):
         showQueryHandler(q)
-    elif(type==CONST_INSERT):
+    elif(type.upper()==CONST_INSERT):
         insertQueryHandler(q)
-    elif(type==CONST_DESCRIBE):
+    elif(type.upper()==CONST_DESCRIBE):
         describeQueryHandler(q)
 
 def getDatabases():
@@ -319,10 +316,12 @@ def processeColumnsData(s):
 
 def insertQueryHandler(q):
     table=getTableName(q)
-    f=fileMethods(os.path.join(__location__,CURRENT_DATABASE+'.'+table+'.data'))
+    f=fileMethods(os.path.join(__location__,CURRENT_DATABASE+'.'+table.lower()+'.data'))
     columns=getColumnsOfTable(CURRENT_DATABASE,table)
     values=getColumnsData(q)
     f.openFile()
+    ##setting the delete bit as 0
+    f.writeByte(0)
     for val,col in zip(values,columns):
         type=getDataTypeofColumn(CURRENT_DATABASE,table,col)
         f.writeDataType(val,type,None)
@@ -332,7 +331,7 @@ def insertQueryHandler(q):
 
 def checkIfDeleted(dbname,table):
     f=fileMethods(os.path.join(__location__,TABLE_NAME))
-    columns=getColumnsOfTable(dbname,TABLE_NAME)
+    columns=getColumnsOfTable(dbname,'tables')
     f.openFile()
     f.seek(0)
     flag=0
