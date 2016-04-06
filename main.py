@@ -1,5 +1,4 @@
 import time
-from django.utils.timezone import now
 from datetime import datetime
 from helperfunctions import fileMethods
 
@@ -327,7 +326,11 @@ def insertQueryHandler(q):
     f.writeByte(0)
     for val,col in zip(values,columns):
         type=getDataTypeofColumn(CURRENT_DATABASE,table,col)
-        temf=open()
+        tempf=fileMethods(os.path.join(__location__,CURRENT_DATABASE+'.'+table.lower()+'.'+col.lower()+'.ndx'))
+        tempf.openFile()
+        tempf.writeDataType(val,type,None)
+        tempf.writeUnLong(int(f.tell()))
+        tempf.close()
         f.writeDataType(val,type,None)
     f.close()
 
