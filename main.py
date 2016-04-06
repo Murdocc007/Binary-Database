@@ -43,6 +43,7 @@ __location__ = os.path.realpath(
 def createSchemaQueryHandler(q):
     schema=q.split()[2]
     writeInformationSchemaSchemata(schema)
+    updateTableCount(CURRENT_DATABASE,'schemata')
 
 
 def createTableQueryHandler(q):
@@ -72,6 +73,8 @@ def createTableQueryHandler(q):
         tuple.append(name)
         tuple.append(key)
         writeInformationSchemaColumns(tuple)
+    updateTableCount(CURRENT_DATABASE,'columns')
+    updateTableCount(CURRENT_DATABASE,'tables')
 
 
 #writing to the TABLES table of the information schema
@@ -142,9 +145,41 @@ def writeInformationSchemaColumns(tuple):
     f.close()
 
 
+def updateTableCount(dbname,table):
+    f=fileMethods(os.path.join(__location__, dbname+'.'+table.lower()+'.data'))
+    columns=getColumnsOfTable(dbname,table)
+    f.openFile()
+    count=0
+    while(f.reachedEOF()!=True):
+        f.readByte(None)
+        count=count+1
+        for col in columns:
+            type=getDataTypeofColumn(dbname,table,col)
+            f.readDataType(type,None)
+    f.close()
 
+    f=fileMethods(os.path.join(__location__,TABLE_NAME))
+    columns=getColumnsOfTable(dbname,'tables')
+    f.openFile()
+    flag=0
+    pos=0
+    while(f.reachedEOF()!=True and flag==0):
+        f.readByte(None)
+        for col in columns:
+            temp=f.tell()
+            type=getDataTypeofColumn(dbname,'tables',col)
+            val=f.readDataType(type,None)
+            if(col.upper()=='TABLE_ROWS'):
+                pos=temp
+            if(col.upper()=='TABLE_NAME' and val.upper()==table.upper()):
+                flag=1
+    f.close()
 
-
+    #opening the file in write mode
+    f.openWriteMode()
+    f.seek(pos)
+    f.writeUnLong(int(count))
+    f.close()
 
 
 def writeInformationSchemaSchemata(schema):
@@ -262,6 +297,7 @@ def getDatabases():
     f.close()
 
 def useQueryHandler(q):
+    global  CURRENT_DATABASE
     CURRENT_DATABASE=q.split()[1].lower()
 
 def describeQueryHandler(q):
@@ -334,31 +370,32 @@ def insertQueryHandler(q):
         f.writeDataType(val,type,None)
     f.close()
 
-    #update the count of the table
-    f=fileMethods(os.path.join(__location__,TABLE_NAME))
-    columns=getColumnsOfTable(CURRENT_DATABASE,'tables')
-    f.openFile()
-    flag=0
-    pos=0
-    count=0
-    while(f.reachedEOF()!=True and flag==0):
-        f.readByte(None)
-        for col in columns:
-            temp=f.tell()
-            type=getDataTypeofColumn(CURRENT_DATABASE,'tables',col)
-            val=f.readDataType(type,None)
-            if(col.upper()=='TABLE_ROWS'):
-                count=val
-                pos=temp
-            if(col.upper()=='TABLE_NAME' and val.upper()==table.upper()):
-                flag=1
-    f.close()
-
-    #opening the file in write mode
-    f.openWriteMode()
-    f.seek(pos)
-    f.writeUnLong(int(count)+1)
-    f.close()
+    updateTableCount(CURRENT_DATABASE,table)
+    # #update the count of the table
+    # f=fileMethods(os.path.join(__location__,TABLE_NAME))
+    # columns=getColumnsOfTable(CURRENT_DATABASE,'tables')
+    # f.openFile()
+    # flag=0
+    # pos=0
+    # count=0
+    # while(f.reachedEOF()!=True and flag==0):
+    #     f.readByte(None)
+    #     for col in columns:
+    #         temp=f.tell()
+    #         type=getDataTypeofColumn(CURRENT_DATABASE,'tables',col)
+    #         val=f.readDataType(type,None)
+    #         if(col.upper()=='TABLE_ROWS'):
+    #             count=val
+    #             pos=temp
+    #         if(col.upper()=='TABLE_NAME' and val.upper()==table.upper()):
+    #             flag=1
+    # f.close()
+    #
+    # #opening the file in write mode
+    # f.openWriteMode()
+    # f.seek(pos)
+    # f.writeUnLong(int(count)+1)
+    # f.close()
 
 
 
@@ -562,3 +599,7 @@ while(s!='exit'):
      s=raw_input()
      s=sqlparse.format(s, keyword_case='upper')
      processQuery(s)
+
+# updateTableCount(CURRENT_DATABASE,'tables')
+# updateTableCount(CURRENT_DATABASE,'columns')
+# updateTableCount(CURRENT_DATABASE,'schemata')
