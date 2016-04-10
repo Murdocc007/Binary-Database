@@ -7,7 +7,7 @@ import os,sys,re,sqlparse
 import helperfunctions
 
 CURRENT_DATABASE='information_schema'
-CONST_DB='DATABASES'
+CONST_DB='SCHEMAS'
 CONST_SCHEMA='SCHEMA'
 CONST_CREATE='CREATE'
 CONST_DROP='DROP'
@@ -43,7 +43,7 @@ __location__ = os.path.realpath(
 def createSchemaQueryHandler(q):
     schema=q.split()[2]
     writeInformationSchemaSchemata(schema)
-    updateTableCount(CURRENT_DATABASE,'schemata')
+    updateTableCount('information_schema','schemata')
 
 
 def createTableQueryHandler(q):
@@ -73,8 +73,8 @@ def createTableQueryHandler(q):
         tuple.append(name)
         tuple.append(key)
         writeInformationSchemaColumns(tuple)
-    updateTableCount(CURRENT_DATABASE,'columns')
-    updateTableCount(CURRENT_DATABASE,'tables')
+    updateTableCount('information_schema','columns')
+    updateTableCount('information_schema','tables')
 
 
 #writing to the TABLES table of the information schema
@@ -107,6 +107,7 @@ def getDatabaseTables(dbname):
     f.openFile()
     f.seek(0)
     result=[[]]
+    print 'SCHEMA_NAME  TABLE_NAME  TABLE_TYPE  TABLE_ROWS  CREATE_TIME   UPDATE_TIME'
     while(f.reachedEOF()!=True):
         temp=[]
         # length=f.readInt(None)
@@ -118,8 +119,8 @@ def getDatabaseTables(dbname):
         create_time=f.readDateTime(None)
         update_time=f.readDateTime(None)
         if(schema_name==dbname and delete==0):
-            print schema_name +' '+table_name+' '+table_type+' '+str(table_rows)+' '\
-                  +str(datetime.fromtimestamp(create_time))+' '+str(datetime.fromtimestamp(update_time))
+            print schema_name +'   '+table_name+'   '+table_type+'   '+str(table_rows)+'   '\
+                  +str(datetime.fromtimestamp(create_time))+'   '+str(datetime.fromtimestamp(update_time))
 
 
 def writeInformationSchemaColumns(tuple):
@@ -158,7 +159,7 @@ def updateTableCount(dbname,table):
             f.readDataType(type,None)
     f.close()
     f=fileMethods(os.path.join(__location__,TABLE_NAME))
-    columns=getColumnsOfTable(dbname,'tables')
+    columns=getColumnsOfTable('information_schema','tables')
     f.openFile()
     flag=0
     pos=0
@@ -166,7 +167,7 @@ def updateTableCount(dbname,table):
         f.readByte(None)
         for col in columns:
             temp=f.tell()
-            type=getDataTypeofColumn(dbname,'tables',col)
+            type=getDataTypeofColumn('information_schema','tables',col)
             val=f.readDataType(type,None)
             if(col.upper()=='TABLE_ROWS'):
                 pos=temp
@@ -181,7 +182,7 @@ def updateTableCount(dbname,table):
 
 def updateAccessTime(dbname,table):
     f=fileMethods(os.path.join(__location__,TABLE_NAME))
-    columns=getColumnsOfTable(dbname,'tables')
+    columns=getColumnsOfTable('information_schema','tables')
     f.openFile()
     flag=0
     pos=0
@@ -189,7 +190,7 @@ def updateAccessTime(dbname,table):
         f.readByte(None)
         for col in columns:
             temp=f.tell()
-            type=getDataTypeofColumn(dbname,'tables',col)
+            type=getDataTypeofColumn('information_schema','tables',col)
             val=f.readDataType(type,None)
             if(col.upper()=='UPDATE_TIME'):
                 pos=temp
@@ -315,6 +316,7 @@ def getDatabases():
     f=fileMethods(os.path.join(__location__, TABLE_SCHEMATA))
     f.openFile()
     f.seek(0)
+    print 'SCHEMAS'
     while(f.reachedEOF()!=True):
         print f.readVarChar(None)
     f.close()
@@ -322,14 +324,17 @@ def getDatabases():
 def useQueryHandler(q):
     global  CURRENT_DATABASE
     CURRENT_DATABASE=q.split()[1].lower()
+    print 'The current database is '+CURRENT_DATABASE
 
 def describeQueryHandler(q):
     table=getTableName(q)
     columns=getColumnsOfTable(CURRENT_DATABASE,table)
     for col in columns:
-        print(col,)
+        print col,
         type=getDataTypeofColumn(CURRENT_DATABASE,table,col)
-        print (type)
+        print ' ',
+        print type,
+        print
 
 
 
@@ -395,6 +400,8 @@ def insertQueryHandler(q):
 
     updateTableCount(CURRENT_DATABASE,table)
     updateAccessTime(CURRENT_DATABASE,table)
+
+    print 'Added 1 row to the table '
     # #update the count of the table
     # f=fileMethods(os.path.join(__location__,TABLE_NAME))
     # columns=getColumnsOfTable(CURRENT_DATABASE,'tables')
@@ -426,7 +433,7 @@ def insertQueryHandler(q):
 
 def checkIfDeleted(dbname,table):
     f=fileMethods(os.path.join(__location__,TABLE_NAME))
-    columns=getColumnsOfTable(dbname,'tables')
+    columns=getColumnsOfTable('information_schema','tables')
     f.openFile()
     f.seek(0)
     flag=0
@@ -444,7 +451,7 @@ def checkIfDeleted(dbname,table):
 def dropQueryHandler(q):
     table=getTableName(q)
     f=fileMethods(os.path.join(__location__,TABLE_NAME))
-    columns=getColumnsOfTable(CURRENT_DATABASE,'TABLES')
+    columns=getColumnsOfTable('information_schema','TABLES')
     f.openFile()
     f.seek(0)
     flag=0
@@ -453,7 +460,7 @@ def dropQueryHandler(q):
         pos=f.tell()
         deletebit=f.readByte(None)
         for col in columns:
-            type=getDataTypeofColumn(CURRENT_DATABASE,'TABLES',col)
+            type=getDataTypeofColumn('information_schema','TABLES',col)
             val=f.readDataType(type,None)
             if(col=='TABLE_NAME' and val.upper()==table.upper()):
                 flag=1
@@ -466,7 +473,7 @@ def dropQueryHandler(q):
     f.close()
 
     f=fileMethods(os.path.join(__location__,TABLE_COLUMNS))
-    columns=getColumnsOfTable(CURRENT_DATABASE,'columns')
+    columns=getColumnsOfTable('information_schema','columns')
     f.openFile()
     f.seek(0)
     flag=0
@@ -476,7 +483,7 @@ def dropQueryHandler(q):
         pos=f.tell()
         deletebit=f.readByte(None)
         for col in columns:
-            type=getDataTypeofColumn(CURRENT_DATABASE,'columns',col)
+            type=getDataTypeofColumn('information_schema','columns',col)
             val=f.readDataType(type,None)
             if(col=='TABLE_NAME' and val.upper()==table.upper()):
                 tuple.append(pos)
@@ -488,6 +495,7 @@ def dropQueryHandler(q):
         f.seek(i)
         f.writeByte(1)
     f.close()
+    print 'Dropped table '+table
 
 
 
@@ -507,6 +515,9 @@ def selectQueryHandler(q):
     f.openFile()
     f.seek(0)
     if(columns_requested[0]=="*"):
+        for col in columns:
+            print col,
+        print
         while(f.reachedEOF()!=True):
             deletebit=f.readByte(None)
             tuple=[]
@@ -522,7 +533,10 @@ def selectQueryHandler(q):
                     flag=1
 
             if(deletebit==0 and flag==1):
-                print tuple
+                # print tuple
+                for i in tuple:
+                    print i,
+                print
     else:
         while(f.reachedEOF()!=True):
             deletebit=f.readByte(None)
@@ -621,8 +635,11 @@ s=''
 while(s!='exit'):
      sys.stdout.write('davisql>')
      s=raw_input()
-     s=sqlparse.format(s, keyword_case='upper')
-     processQuery(s)
+     if(s[-1:]!=';'):
+         print 'Missing Semicolon ;'
+     else:
+        s=sqlparse.format(s[:len(s)-1], keyword_case='upper')
+        processQuery(s)
 
 # updateTableCount(CURRENT_DATABASE,'tables')
 # updateTableCount(CURRENT_DATABASE,'columns')
