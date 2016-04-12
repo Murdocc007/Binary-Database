@@ -1,3 +1,5 @@
 *.idea
 *.pyc
 information_schema.*
+*.ndx
+*.data
