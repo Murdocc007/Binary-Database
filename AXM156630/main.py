@@ -1,7 +1,7 @@
 import time
-from datetime import datetime as dt
+from datetime import datetime
 from helperfunctions import fileMethods
-import datetime
+
 __author__ = 'aditya'
 import os,sys,re,sqlparse
 import helperfunctions
@@ -120,7 +120,7 @@ def getDatabaseTables(dbname):
         update_time=f.readDateTime(None)
         if(schema_name==dbname and delete==0):
             print schema_name +'   '+table_name+'   '+table_type+'   '+str(table_rows)+'   '\
-                  +str(dt.fromtimestamp(create_time))+'   '+str(dt.fromtimestamp(update_time))
+                  +str(datetime.fromtimestamp(create_time))+'   '+str(datetime.fromtimestamp(update_time))
 
 
 def writeInformationSchemaColumns(tuple):
@@ -390,8 +390,6 @@ def insertQueryHandler(q):
     f.writeByte(0)
     for val,col in zip(values,columns):
         type=getDataTypeofColumn(CURRENT_DATABASE,table,col)
-        if(type.lower()=='Date'.lower()):
-            val=int(time.mktime(datetime.datetime.strptime(val[1:-1], "%Y-%m-%d").timetuple()))
         tempf=fileMethods(os.path.join(__location__,CURRENT_DATABASE+'.'+table.lower()+'.'+col.lower()+'.ndx'))
         tempf.openFile()
         tempf.writeDataType(val,type,None)
@@ -510,7 +508,7 @@ def selectQueryHandler(q):
     if(checkIfDeleted(CURRENT_DATABASE,table)==1):
         print 'TABLE ALREADY HAS BEEN DELETED'
         return
-    columns_requested,wherecolumn,wherevalue,operator=getColumnsData(q)
+    columns_requested,wherecolumn,wherevalue=getColumnsData(q)
     wherevalue=[col.strip("'") for col in wherevalue]
     f=fileMethods(os.path.join(__location__,CURRENT_DATABASE+'.'+table.lower()+'.data'))
     columns=getColumnsOfTable(CURRENT_DATABASE,table.upper())
@@ -527,19 +525,10 @@ def selectQueryHandler(q):
             for col in columns:
                 type=getDataTypeofColumn(CURRENT_DATABASE,table,col)
                 val=f.readDataType(type,None)
-                if(type.lower()=='Date'.lower()):
-                    val=dt.fromtimestamp(int(val))
                 tuple.append(val)
                 if(len(wherecolumn)!=0):
-                    if(operator=='='):
-                        if(col in wherecolumn and str(wherevalue[0]).upper()==str(val).upper()):
-                            flag=1
-                    if(operator=='<'):
-                        if(col in wherecolumn and str(wherevalue[0]).upper()>str(val).upper()):
-                            flag=1
-                    if(operator=='>'):
-                        if(col in wherecolumn and str(wherevalue[0]).upper()<str(val).upper()):
-                            flag=1
+                    if(col in wherecolumn and str(wherevalue[0]).upper()==str(val).upper()):
+                        flag=1
                 else:
                     flag=1
 
@@ -620,15 +609,6 @@ def getColumnsData(q):
             value.append(temp[1])
 
     elif(type==CONST_SELECT):
-        operator=''
-        if('=' in q):
-            operator='='
-        elif('>' in q):
-            operator='>'
-        else:
-            operator='<'
-
-
         selectcols=q[q.index(CONST_SELECT)+6:q.index('FROM')]
         #columns to be selected
         selectcols=selectcols.strip(" ")
@@ -641,12 +621,11 @@ def getColumnsData(q):
         label=[]
         value=[]
         for i in s:
-            temp=i.split(operator)
+            temp=i.split('=')
             #two list one with the label and the other with the value
             label.append(temp[0].strip(' '))
-            label.append(temp[0].strip(' '))
             value.append(temp[1].strip(' '))
-        return selectcols,label,value,operator
+        return selectcols,label,value
 
     else:
         return None
