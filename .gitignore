@@ -3,3 +3,4 @@
 information_schema.*
 *.ndx
 *.data
+*.zip
